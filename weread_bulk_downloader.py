@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
 import json
 import re
 import sys
@@ -53,6 +54,9 @@ def load_fetch():
     return mod
 
 
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def gateway(api_key: str, api_name: str, params: dict) -> dict:
     """调用微信读书 Agent Gateway(直连, 不走系统代理)。"""
     body = {"api_name": api_name, "skill_version": "1.0.3", **params}
@@ -61,8 +65,7 @@ def gateway(api_key: str, api_name: str, params: dict) -> dict:
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
     )
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(req, timeout=20) as resp:
+    with _OPENER.open(req, timeout=20) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     if data.get("errcode", 0) != 0:
         raise RuntimeError(f"gateway {api_name} errcode={data.get('errcode')} {data.get('errmsg')}")
@@ -181,9 +184,10 @@ def inject_underlines(html, underlines, thought_map, chapter_uid, book_id):
 
     ranges = []
     for ul in underlines:
-        pr = parse_range(ul.get("range"))
-        if pr:
-            ranges.append({"range_str": ul["range"], "start": pr[0], "end": pr[1]})
+        range_str = ul.get("range")
+        pr = parse_range(range_str)
+        if pr and range_str:
+            ranges.append({"range_str": range_str, "start": pr[0], "end": pr[1]})
     if not ranges:
         return html
 
@@ -350,7 +354,12 @@ def build_txt_html(api_key, book_id, uid, plain, chapter_title) -> tuple[str, st
     if not plain:
         return empty, ""
 
-    lines = plain.split("\r\n")
+    if "\r\n" in plain:
+        lines = plain.split("\r\n")
+        sep_len = 2
+    else:
+        lines = plain.split("\n")
+        sep_len = 1
     ann_css = ""
     seg_ranges: dict[int, list] = {}
 
@@ -370,7 +379,7 @@ def build_txt_html(api_key, book_id, uid, plain, chapter_title) -> tuple[str, st
             cur = 0
             for line in lines:
                 offsets.append(cur)
-                cur += len(line) + 2  # \r\n
+                cur += len(line) + sep_len  # 换行符长度
             for ul in uls:
                 pr = parse_range(ul.get("range"))
                 if not pr:
@@ -484,14 +493,20 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--book-id", required=True)
-    ap.add_argument("--cookie-string", required=True, help="Cookie 头字符串(下载正文用)")
-    ap.add_argument("--api-key", default="", help="API Key(划线/想法用, 可留空则跳过划线)")
+    ap.add_argument("--cookie-string", default="", help="Cookie 头字符串(默认读环境变量 WEREAD_COOKIE)")
+    ap.add_argument("--api-key", default="", help="API Key(默认读 WEREAD_API_KEY, 留空则跳过划线)")
     ap.add_argument("--out-dir", type=Path, default=Path("weread_cache"))
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--sleep", type=float, default=0.4)
     ap.add_argument("--max-retries", type=int, default=6)
     ap.add_argument("--retry-delay", type=int, default=30)
     args = ap.parse_args()
+    if not args.cookie_string:
+        args.cookie_string = os.environ.get("WEREAD_COOKIE", "")
+    if not args.api_key:
+        args.api_key = os.environ.get("WEREAD_API_KEY", "")
+    if not args.cookie_string:
+        sys.exit("错误: 必须提供 --cookie-string 或设置环境变量 WEREAD_COOKIE")
 
     fetch = load_fetch()
 
@@ -539,6 +554,7 @@ def main() -> int:
             ok = False
             for attempt in range(1, args.max_retries + 1):
                 try:
+                    was_new = uid not in done_uids
                     title, content, css, assets, ann_css = fetch_chapter_annotated(
                         fetch, client, args.api_key, book_id, chapter,
                         args.sleep, content_format)
@@ -557,7 +573,7 @@ def main() -> int:
                     if ann_css:
                         annotate_css_map[uid] = ann_css
                         annotated_uids.add(uid)
-                    print(f"[{idx}/{len(chapters)}] {'↓' if uid not in done_uids else '↻'}{title}", flush=True)
+                    print(f"[{idx}/{len(chapters)}] {'↓' if was_new else '↻'}{title}", flush=True)
                     ok = True
                     break
                 except Exception as exc:
