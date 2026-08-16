@@ -30,7 +30,7 @@
 
 ### 0. 环境
 
-- Python 3.9+
+- Python 3.10+
 - 与 [weread.koplugin](https://github.com/finlater/weread.koplugin) 同级目录（或把其 `scripts/fetch_weread_epub.py` 放到本目录）
 
 ```bash
@@ -55,13 +55,18 @@ python extract_weread_auth.py /path/to/weread.lua
 ### 2. 下载
 
 ```bash
-# 下载前 200 章（含划线注入）
+# 方式一: 命令行传凭证
 python weread_bulk_downloader.py \
   --book-id 29664125 \
   --cookie-string "wr_vid=xxx; wr_gid=yyy" \
   --api-key "wrk-xxx" \
   --limit 200 \
   --out-dir ./weread_cache
+
+# 方式二: 环境变量(避免凭证出现在进程列表/历史记录)
+export WEREAD_COOKIE="wr_vid=xxx; wr_gid=yyy"
+export WEREAD_API_KEY="wrk-xxx"
+python weread_bulk_downloader.py --book-id 29664125 --limit 200 --out-dir ./weread_cache
 
 # 全量下载（不传 --limit 即全部；重跑同一命令 = 断点续传/补注划线）
 python weread_bulk_downloader.py \
@@ -93,6 +98,7 @@ python weread_bulk_downloader.py \
 - **`errcode -10102` 限流**：增大 `--sleep`（0.4~0.6）和 `--retry-delay`（30s+），工具会自动重试。
 - **划线位置偏移**：txt 格式书籍必须用本工具的段落模型注入（不要对重包装后的 HTML 注入）。
 - **想法弹窗不显示**：KOReader 插件点击划线弹想法依赖其 `thoughts.db`（SQLite），本工具暂未生成，划线高亮不受影响。
+- **凭证安全**：优先使用环境变量 `WEREAD_COOKIE` / `WEREAD_API_KEY`，避免在命令行明文传参。
 
 ## 致谢与许可
 
