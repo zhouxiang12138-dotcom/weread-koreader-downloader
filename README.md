@@ -38,7 +38,8 @@
 ├── plugins/weread.koplugin/     ← 插件本体（①）
 ├── settings/weread.lua          ← 登录凭证（③，可提取）
 └── weread/cache/29664125/       ← 本工具下载的书（②，目录名=bookId）
-    └── 29664125.epub
+    ├── 29664125.epub            ← 整书
+    └── thoughts.db              ← 想法库（build_thought_db.py 生成，可选）
 ```
 
 ## 原理
@@ -106,6 +107,17 @@ python weread_bulk_downloader.py \
 
 `--book-id` 可从书架 API 获取，或参考 `weread.koplugin` 的说明。输出：`weread_cache/<bookId>/<bookId>.epub`
 
+### 2.5 生成想法库（点击划线弹「想法」必需）
+
+KOReader 插件点击划线弹出想法（他人评论/笔记），是从书目录下的 `thoughts.db`（SQLite）实时读取的，**不是从 EPUB 内嵌**。下载完书后用一条命令生成：
+
+```bash
+python build_thought_db.py --book-id 29664125 --api-key "wrk-xxx" --out-dir ./weread_cache
+# 生成 weread_cache/29664125/thoughts.db（每章几百条想法，200 章约 10 分钟）
+```
+
+> 只想要划线高亮、不需要想法弹窗的话，这步可跳过。
+
 ### 3. 导入 KOReader 并解锁同步
 
 > 前置：插件已装、设备可 USB 连接（安装位置见上方「安装位置」章节）
@@ -123,6 +135,7 @@ python weread_bulk_downloader.py \
 | 文件 | 作用 |
 |------|------|
 | `weread_bulk_downloader.py` | 主下载器：限流重试 + 断点续传 + 划线/想法注入（txt/epub 双格式） |
+| `build_thought_db.py` | 生成 `thoughts.db` 想法库（点击划线弹想法必需，按插件 schema 写入） |
 | `extract_weread_auth.py` | 从 KOReader 的 `weread.lua` 提取 Cookie 与 API Key |
 | `fetch_weread_epub.py` | 协议层（来自 weread.koplugin，AGPL-3.0），请保持同目录 |
 
