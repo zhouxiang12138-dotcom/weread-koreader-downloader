@@ -1,13 +1,45 @@
 # weread-koreader-downloader
 
-在 **电脑端** 批量下载微信读书书籍（含划线/想法注入），生成 **KOReader 可直接识别** 的缓存 EPUB，实现：
+**专为 KOReader 微信读书插件（[weread.koplugin](https://github.com/finlater/weread.koplugin)）设计**的电脑端批量下载器：在 **电脑端** 下载微信读书书籍（含划线/想法注入），产出插件可直接识别的「微信读书缓存书籍」目录，实现：
 
 - ✅ 电脑宽带全量下载，解决 KOReader 设备端下载慢/易中断的问题
 - ✅ **阅读进度双向同步**（打开拉取云端进度 / 关闭上传本地进度）
 - ✅ **阅读时长上报**（微信读书统计/排行榜可见）
-- ✅ **划线与想法注入**（橙色虚线下划线，与 KOReader 插件原生效果一致）
+- ✅ **划线与想法注入**（橙色虚线下划线，与插件原生效果一致）
 
 > ⚠️ **免责声明**：本项目仅供个人学习与技术研究，用于备份自己已购/已读的书籍。基于微信读书网页端逆向接口，存在账号风控风险，请遵守微信读书用户协议，后果自负。严禁用于传播盗版内容。
+
+## 安装位置（配套环境）
+
+本工具**必须配合 KOReader 的 WeRead 插件（weread.koplugin）使用**——下载的书只有放进插件的缓存目录，才会被识别为「微信读书缓存书籍」，从而解锁进度/时长同步。请先确保插件已装：
+
+**① 插件本体**（KOReader 设备上）
+- 来源：下载 [weread.koplugin Releases](https://github.com/finlater/weread.koplugin/releases) 的 `weread.koplugin-vX.Y.Z.zip`
+- 安装到：`koreader/plugins/weread.koplugin/`（解压后整个文件夹）
+- 重启 KOReader，菜单出现：工具 → 微信读书（首次需扫码登录）
+
+**② 本工具下载的书**（拷入设备后的位置）
+- 放到：`koreader/weread/cache/<bookId>/`（**目录名必须等于书架 bookId**，目录内放 .epub）
+
+**③ 登录凭证**（`koreader/settings/weread.lua`）——插件登录后自动生成，可被 `extract_weread_auth.py` 读取，用于电脑端下载
+
+常见设备路径：
+
+| 设备 | KOReader 根目录 |
+|------|----------------|
+| 安卓（手机/平板） | `/storage/emulated/0/koreader/` |
+| Kindle | `koreader/`（USB 根目录） |
+| Kobo | `.kobo/koreader/` |
+
+目录结构示例（安卓）：
+
+```
+/storage/emulated/0/koreader/
+├── plugins/weread.koplugin/     ← 插件本体（①）
+├── settings/weread.lua          ← 登录凭证（③，可提取）
+└── weread/cache/29664125/       ← 本工具下载的书（②，目录名=bookId）
+    └── 29664125.epub
+```
 
 ## 原理
 
@@ -77,12 +109,14 @@ python weread_bulk_downloader.py \
 
 ### 3. 导入 KOReader 并解锁同步
 
-1. 把 `weread_cache/<bookId>/` 整个目录拷到设备（如安卓：`/storage/emulated/0/koreader/weread/cache/<bookId>/`）
+> 前置：插件已装、设备可 USB 连接（安装位置见上方「安装位置」章节）
+
+1. 把 `weread_cache/<bookId>/` 整个目录拷到设备（安卓示例：`/storage/emulated/0/koreader/weread/cache/<bookId>/`，**目录名必须保持 bookId**）
 2. KOReader → 工具 → 微信读书 → 设置 → 缓存管理 → 点 **扫描并关联本地书籍**
 3. 设置 → 进度管理：打开「打开时拉取进度」「关闭时上传进度」
 4. 设置 → 阅读时间上报：启用（阅读时长回传微信读书统计）
 
-> 关键点：KOReader 插件通过"目录名 = 书架 bookId + 目录内有 .epub"识别缓存书籍（`scan.lua`），识别后即为「微信读书缓存书籍」，进度/时长同步全部生效。
+> 关键点：插件通过"目录名 = 书架 bookId + 目录内有 .epub"识别缓存书籍（`scan.lua`），识别后即为「微信读书缓存书籍」，进度/时长同步全部生效。
 
 ## 工具列表
 
