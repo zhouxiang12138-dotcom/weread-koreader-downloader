@@ -1,0 +1,14 @@
+# 缓存与下载产物
+weread_cache/
+*.epub
+.parts/
+
+# 凭证(切勿提交!)
+weread.lua
+cookies*.txt
+config*.lua
+.env
+
+# Python
+__pycache__/
+*.pyc
