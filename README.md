@@ -55,7 +55,6 @@
 **关键经验（已踩过的坑）**：
 - 微信读书正文有两种格式：`epub`（原始 HTML）与 `txt`（纯文本，段落 = `\r\n` + 两个全角空格 `\u3000\u3000` 缩进）。**划线 range 直接基于这份原始文本**，重新包装 HTML 会导致整体偏移——txt 章节必须按段落逐段注入。
 - 划线注入必须在图片地址重写**之前**（range 基于原始 HTML）。
-- 微信读书是国内服务，**不能走海外代理**（会被拒/超时），务必直连。
 - 下载过快会触发限流（`errcode -10102`），需降速 + 失败重试。
 
 ## 快速开始
@@ -128,7 +127,6 @@ python weread_bulk_downloader.py \
 
 ## 常见问题
 
-- **下载报 `WinError 10061` / 超时**：系统代理挡了国内直连。执行前 `unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy`，或把 `weread.qq.com`、`i.weread.qq.com` 加入代理直连规则。
 - **`errcode -10102` 限流**：增大 `--sleep`（0.4~0.6）和 `--retry-delay`（30s+），工具会自动重试。
 - **划线位置偏移**：txt 格式书籍必须用本工具的段落模型注入（不要对重包装后的 HTML 注入）。
 - **想法弹窗不显示**：KOReader 插件点击划线弹想法依赖其 `thoughts.db`（SQLite），本工具暂未生成，划线高亮不受影响。
