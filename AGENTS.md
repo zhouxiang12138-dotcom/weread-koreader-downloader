@@ -17,7 +17,7 @@ python3 --version          # 需 3.10+
 ls weread.koplugin/scripts/fetch_weread_epub.py || ls fetch_weread_epub.py   # 依赖存在
 ```
 
-- 本工具脚本：`weread_bulk_downloader.py`、`build_thought_db.py`、`extract_weread_auth.py`
+- 本工具脚本：`weread_bulk_downloader.py`、`add_cover.py`、`build_thought_db.py`、`extract_weread_auth.py`
 - **网络**：微信读书是国内服务，请求必须**直连**。若运行环境有 HTTP(S)_PROXY 代理变量且连接失败（`WinError 10061` / `ERR_NO_SUPPORTED_PROXIES`），先 `unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy` 再执行。脚本内部已强制直连（`ProxyHandler({})`）。
 
 ## 2. 获取凭证（向用户要，或自动提取）
@@ -52,6 +52,15 @@ python weread_bulk_downloader.py --book-id <bookId> --out-dir ./weread_cache --l
 - **限流保护**：默认每章 0.4s 间隔 + 失败重试 6 次。千章级大书约 1~1.5 小时，属正常（防微信读书风控）。报 `errcode -10102` 说明太快，增大 `--sleep`（0.5~0.6）重跑（断点续传不重下）。
 - **HTTP 499**：单次请求超时，脚本自动跳过该章，跑完检查日志 `weread_cache/download_<bookId>.log` 的 `!! 跳过` / `失败`，对失败章节单独重试（可写一次性补跑脚本，3 次重试 + 3s 间隔）。
 
+## 3.1 补封面（下载的 EPUB 默认无封面）
+
+```bash
+python add_cover.py --book-id <bookId> --out-dir ./weread_cache
+```
+
+- 自动从 `/book/info` 取封面 URL 下载并写入 EPUB（`meta name=cover` + `properties="cover-image"` item + `OEBPS/images/cover.jpg`）；原文件备份为 `.epub.bak`。
+- 用 API Key 走 gateway，无需 Cookie。
+
 ## 4. 生成想法库（推荐，点击划线弹想法必需）
 
 KOReader 插件点击划线弹想法是从书目录下 `thoughts.db`（SQLite，表 `review_items`）读取，不是 EPUB 内嵌。
@@ -77,6 +86,7 @@ python build_thought_db.py --book-id <bookId> --out-dir ./weread_cache
 ## 6. 验证清单（交付前必查）
 
 - [ ] `weread_cache/<bookId>/<bookId>.epub` 存在，用 zipfile 检查 `OEBPS/text/` 章节数 = 预期
+- [ ] EPUB 含封面：`content.opf` 有 `name="cover"` 与 `properties="cover-image"`，且有 `OEBPS/images/cover.*`
 - [ ] 章节 HTML 含 `wr-underline`（划线已注入）且 CSS 含 `.wr-underline` 样式
 - [ ] `thoughts.db` 存在，`SELECT COUNT(*) FROM review_items` > 0
 - [ ] 告知用户设备上的最终路径和 KOReader 操作步骤
